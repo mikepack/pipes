@@ -25,6 +25,10 @@ Here's a simplified look at our stages:
 
 We want to ensure that all of **Stage 1** is finished before **Stage 2** begins, and likewise for **Stage 3**. However, the individual components of each stage can execute asynchronously, we just want to make sure they converge when all is finished.
 
+This can be visualized as follows:
+
+![Architecture](http://i.imgur.com/0CEmm.png)
+
 ## Installation
 
 Add this line to your application's Gemfile:
