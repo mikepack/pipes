@@ -41,7 +41,7 @@ Or install it yourself as:
 
 ## Usage
 
-Pipes assumes your conforming to the Resque API in your jobs, so you might have the following:
+Pipes assumes you're conforming to the Resque API in your jobs, so you might have the following:
 
 ```ruby
 module Writers
