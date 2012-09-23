@@ -1,4 +1,4 @@
-# Pipes
+# Pipes [<img src="https://secure.travis-ci.org/mikepack/pipes.png" />](http://travis-ci.org/mikepack/pipes) [<img src="https://codeclimate.com/badge.png" />](https://codeclimate.com/github/mikepack/pipes)
 
 ![Pipes](http://i.imgur.com/MND26.png)
 
