@@ -1,6 +1,8 @@
 require 'rspec'
 RSpec::Mocks.setup(Object)
 
+require 'mock_jobs'
+
 require 'pipes'
 
 Pipes.namespace = 'test'

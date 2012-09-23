@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'mock_jobs'
 
 describe Pipes::Runner do
 

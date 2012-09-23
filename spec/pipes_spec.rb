@@ -43,4 +43,13 @@ describe Pipes do
 
   end
 
+  describe '.enqueue' do
+
+    it 'delegates to Runner.run' do
+      Pipes::Runner.should_receive(:run).with(Writers::ContentWriter, 'some arg', {resolve: true})
+      Pipes.enqueue(Writers::ContentWriter, 'some arg', {resolve: true})
+    end
+
+  end
+
 end
