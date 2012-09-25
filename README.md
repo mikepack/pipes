@@ -356,6 +356,111 @@ Pipes::Runner.run(:content_writers)
 
 Pipes will queue up both `Writer::HTMLWriter` and `Writer::AssetWriter` in Resque. Resque takes over and respects the queue priorities, first running `Writers::HTMLWriter`, then `Writers::AssetWriter`.
 
+## Queueing Up Additional Jobs
+
+Say you have a job, `Writers::HTMLWriter`, whose purpose is to fire off additional jobs to accomplish the real work. This is actual the case for us at Factory Labs. Our `HTMLWriter` fires off additional jobs who do the heavy lifting of parsing page contents, and writing to a file.
+
+Our `HTMLWriter` fires off additional writers:
+
+```ruby
+module Writers
+  class HTMLWriter
+    @queue = :content_writers
+
+    def self.perform(locale)
+      Pages.all.each do |page|
+        # Enqueue additional jobs to do the real work
+        Pipes::Runner.run(Writers::PageWriter, page.id, locale, {allow_duplicates: [:content_writers]})
+      end
+    end
+  end
+
+  class PageWriter
+    @queue = :content_writers
+
+    def self.perform(page_id, locale)
+      # We would normally do stuff with the locale...
+      url     = page_url(Page.find(page_id))
+      content = URI.parse(url).read
+
+      File.new('index.html', 'w') do |f|
+        f.write(content)
+      end
+    end
+  end
+end
+```
+
+Both jobs are configured for the same stage, with a dependency on `:publishers`:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      {Writers::HTMLWriter => :publishers},
+      {Writers::PageWriter => :publishers}
+    ]
+
+    publishers [
+      Publishers::Rsyncer
+    ]
+  end
+end
+```
+
+We fire off just the `HTMLWriter`:
+
+```ruby
+Pipes::Runner.run(Writer::HTMLWriter, 'en-US')
+```
+
+Pipes queues up the `Writer::HTMLWriter` and its dependent, `Publishers::Rsyncer`. So, our queue looks like this:
+
+```ruby
+# Stage 1 (content_writers)
+Writers::HTMLWriter.perform('en-US')
+
+# Stage 2 (publishers)
+Publishers::Rsyncer.perform('en-US')
+```
+
+After processing the first job, `HTMLWriter`, the Pipes queue looks like this:
+
+```ruby
+# Stage 1 (content_writers)
+Writers::PageWriter.perform(1, 'en-US')
+Writers::PageWriter.perform(2, 'en-US')
+Writers::PageWriter.perform(3, 'en-US')
+...
+
+# Stage 2 (publishers)
+Publishers::Rsyncer.perform('en-US')
+```
+
+Pipes will ensure your stages stay intact when enqueueing additional jobs mid-pipe. That is, **Stage 2** jobs are still queued *after* additional jobs have been added to **Stage 1**. This applies to jobs added to any stages. You can continue to add jobs to any stage while Pipes is working.
+
+**The allow_duplicates option***
+By default, Pipes will check for exact duplicate jobs in the queue (eg `Writer::HTMLWriter` with argument `en-US`). If we don't provide the `allow_duplicates` option within the `HTMLWriter`'s `#perform` method, the Pipes queue would look like this:
+
+```ruby
+# Stage 1 (content_writers)
+(DONE) Writers::HTMLWriter.perform('en-US')
+Writers::PageWriter.perform(1, 'en-US')
+Writers::PageWriter.perform(2, 'en-US')
+Writers::PageWriter.perform(3, 'en-US')
+...
+
+# Stage 2 (publishers)
+Publishers::Rsyncer.perform('en-US')
+Publishers::Rsyncer.perform(1, 'en-US')
+Publishers::Rsyncer.perform(2, 'en-US')
+Publishers::Rsyncer.perform(3, 'en-US')
+```
+
+We only want to run rsync once, so this is incorrect. To prevent this from happening, we indicate that we only want duplicate `:content_writers` to the **allow_duplicates** option.
+
+By telling Pipes that we want to only allow duplicate `:content_writers`, we prevent duplicate `Rsyncer`s from being queued up, even though `PageWriter` has a `Rsyncer` dependency. **allow_duplicates** will force Pipes to check whether the `Rsyncer` class already exists in the queue (ignoring job arguments), and if so, skips that job.
+
 ## Support
 
 Pipes is currently tested under Ruby 1.9.3.
