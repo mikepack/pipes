@@ -252,14 +252,6 @@ Pipes::Runner.run([Writers::HTMLWriter], 'http://localhost:3000/page')
 
 The above code will run `Writers::HTMLWriter` in **Stage 1**, `Publishers::Rsyncer` and `Publishers::CDNUploader` in **Stage 2**, and `Notifiers::FileActivator` in **Stage 3**, all receiving the `http://localhost:3000/page' argument.
 
-You can turn off dependency resolution by passing in some additional Pipes options as the third argument:
-
-```ruby
-Pipes::Runner.run([Writers::HTMLWriter], 'http://localhost:3000/page', {resolve: false})
-```
-
-In the above code, only `Writers::HTMLWriter` will be run.
-
 ## Acceptable Formats for Jobs
 
 Pipes allows you to specify your jobs in a variety of ways:
@@ -302,6 +294,34 @@ end
 ```
 
 If you're using Pipes in a Rails app, stick your configuration in `config/initializers/pipes.rb`.
+
+## Pipes Options
+
+You can pass a hash of options when enqueueing workers through Pipes.
+
+**resolve**
+
+By default, Pipes will resolve and queue up all dependencies of the jobs you are requesting. You can turn off dependency resolution by passing in some additional Pipes options as the third argument:
+
+```ruby
+Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {resolve: false})
+```
+
+When **resolve** is false, only `Writers::HTMLWriter` will be run, ignoring dependencies.
+
+**allow_duplicates**
+
+If jobs are already queued up in Pipes and you'd like to enqueue more jobs, you may need to specify that only certain jobs be duplicated in the queue.
+
+```ruby
+Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: :content_writers})
+# ..or an array of stages..
+Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: [:content_writers, :publishers]})
+```
+
+When Pipes enqueues `Writers::HTMLWriter` and all its dependencies, it will check whether any jobs with the same class name already exist in the queue. If a job has already been queued up with the same class name and **does not** belong to one of the stages provided to **allow_duplicates**, it is ignored.
+
+This option helps prevent adding redundant jobs to the queue. See the section *Queueing Up Additional Jobs*.
 
 ## Working With Resque Priorities
 
