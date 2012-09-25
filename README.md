@@ -483,7 +483,7 @@ By telling Pipes that we want to only allow duplicate `:content_writers`, we pre
 
 ## Support
 
-Pipes is currently tested under Ruby 1.9.3.
+Pipes makes use of Ruby 1.9's ordered hashes. No deliberate support for Ruby 1.8.
 
 ## Known Caveats
 
