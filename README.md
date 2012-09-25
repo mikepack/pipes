@@ -6,9 +6,11 @@
 
 Pipes is a Redis-backed concurrency management system designed around Resque. It provides a DSL for defining "stages" of a process. Each (Resque) job in the stage can be run concurrently, but all must finish before subsequent stages are run.
 
+Conceivably, Pipes is a lightweight, advanced Resque queue.
+
 ## Example
 
-At Factory Code Labs, we work on a system for which we must deploy static HTML files. We must render any number of HTML pages, assets, .htaccess files, etc so the static HTML-based site can run on Apache.
+At Factory Labs, we work on a system for which we must deploy static HTML files. We must render any number of HTML pages, assets, .htaccess files, etc so the static HTML-based site can run on Apache.
 
 Here's a simplified look at our stages:
 
@@ -300,6 +302,59 @@ end
 ```
 
 If you're using Pipes in a Rails app, stick your configuration in `config/initializers/pipes.rb`.
+
+## Working With Resque Priorities
+
+Pipes is designed to work on top of Resque's already-existing queueing system. That is, the queue priorities Resque provides will continue to be honored.
+
+Combining Resque's priority queues with Pipe's stages can produce fine-grain control over how your jobs get processed. By using the normal `@queue` instance variable, and specifying priorities when starting up your Resque workers, you can control the order in which jobs get processed for each individual stage.
+
+Say we had the following jobs:
+
+```ruby
+module Writers
+  class HTMLWriter
+    @queue = :priority_1
+
+    def self.perform; end
+  end
+end
+
+module Writers
+  class AssetWriter
+    @queue = :priority_2
+
+    def self.perform; end
+  end
+end
+```
+
+Both `Writer::HTMLWriter` and `Writer::AssetWriter` are configured for the same stage:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      Writers::HTMLWriter,
+      Writers::AssetWriter
+    ]
+  end
+end
+```
+
+Start up Resque with the usual priority list:
+
+```bash
+$ QUEUES=priority_1,priority_2 rake resque:work
+```
+
+Run the jobs through Pipes:
+
+```ruby
+Pipes::Runner.run(:content_writers)
+```
+
+Pipes will queue up both `Writer::HTMLWriter` and `Writer::AssetWriter` in Resque. Resque takes over and respects the queue priorities, first running `Writers::HTMLWriter`, then `Writers::AssetWriter`.
 
 ## Support
 
