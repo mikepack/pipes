@@ -459,7 +459,8 @@ Publishers::Rsyncer.perform('en-US')
 
 Pipes will ensure your stages stay intact when enqueueing additional jobs mid-pipe. That is, **Stage 2** jobs are still queued *after* additional jobs have been added to **Stage 1**. This applies to jobs added to any stages. You can continue to add jobs to any stage while Pipes is working.
 
-**The allow_duplicates option***
+**The allow_duplicates option**
+
 By default, Pipes will check for exact duplicate jobs in the queue (eg `Writer::HTMLWriter` with argument `en-US`). If we don't provide the `allow_duplicates` option within the `HTMLWriter`'s `#perform` method, the Pipes queue would look like this:
 
 ```ruby
@@ -505,6 +506,7 @@ Pipes::Runner.run([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
 - Better atomicity
 - Represent jobs and stages as objects, instead of simple data structures
 - Support for runaway workers/jobs
+- Stage-level dependencies (much like job-level)
 
 ## Credits
 
