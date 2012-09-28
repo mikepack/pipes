@@ -6,7 +6,7 @@
 
 Pipes is a Redis-backed concurrency management system designed around Resque. It provides a DSL for defining "stages" of a process. Each (Resque) job in the stage can be run concurrently, but all must finish before subsequent stages are run.
 
-Conceivably, Pipes is a lightweight, advanced Resque queue.
+Conceivably, Pipes is a lightweight, advanced Resque queue. It can be dropped right in place of Resque.
 
 ## Example
 
@@ -107,10 +107,12 @@ The name of the stage is arbitrary. Above, we have `content_writers`, `publisher
 
 ### Running The Jobs
 
-Once your configuration is set up, you can fire off the jobs:
+Once your configuration is set up, you can fire off the jobs.
+
+The Pipes API is designed to mimic Resque:
 
 ```ruby
-Pipes::Runner.run([Writers::HTMLWriter, Publishers::Rsyncer])
+Pipes.enqueue([Writers::HTMLWriter, Publishers::Rsyncer])
 ```
 
 The above line essentially says "here's the jobs I'm looking to run", at which point Pipes takes over to determine how to partition them into their appropriate stages. Pipes will break these two jobs up as you would expect:
@@ -123,10 +125,13 @@ Writers::HTMLWriter
 Publishers::Rsyncer
 ```
 
-You can also pass arguments to the jobs, just like Resque:
+You can also pass arguments to the jobs, just like Resque. In fact, any call to `Resque.enqueue` can be safely replaced with `Pipes.enqueue`, but the reverse is not true:
 
 ```ruby
-Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page')
+# If you currently have:
+# Resque.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page')
+# ...you can replace it with:
+Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page')
 ```
 
 In the above case, all jobs' `.perform` methods would receive the `http://localhost:3000/page` argument. You can, of course, pass multiple arguments:
@@ -142,7 +147,7 @@ module Writers
   end
 end
 
-Pipes::Runner.run(Writers::HTMLWriter, 'google.com', 80)
+Pipes.enqueue(Writers::HTMLWriter, 'google.com', 80)
 ```
 
 ## Defining Job Dependencies
@@ -247,7 +252,7 @@ In the above example, `Notifiers::FileActivator` will also be a dependency of `W
 Running jobs with dependencies is the same as before:
 
 ```ruby
-Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page')
+Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page')
 ```
 
 The above code will run `Writers::HTMLWriter` in **Stage 1**, `Publishers::Rsyncer` and `Publishers::CDNUploader` in **Stage 2**, and `Notifiers::FileActivator` in **Stage 3**, all receiving the `http://localhost:3000/page' argument.
@@ -373,16 +378,16 @@ Pipes allows you to specify your jobs in a variety of ways:
 
 ```ruby
 # A single job
-Pipes::Runner.run(Writers::HTMLWriter)
+Pipes.enqueue(Writers::HTMLWriter)
 
 # A single job as a string. Might be helpful if accepting params from a form
-Pipes::Runner.run('Writers::HTMLWriter')
+Pipes.enqueue('Writers::HTMLWriter')
 
 # An entire stage
-Pipes::Runner.run(:content_writers)
+Pipes.enqueue(:content_writers)
 
 # You can pass an array of any of the above, intermixing types
-Pipes::Runner.run([:content_writers, 'Publishers::CDNUploader', Notifiers::FileActivator])
+Pipes.enqueue([:content_writers, 'Publishers::CDNUploader', Notifiers::FileActivator])
 ```
 
 ## Configuring Pipes
@@ -399,7 +404,7 @@ Pipes.configure do |config|
   # config.namespace will specify a Redis namespace to use (default nil):
   config.namespace = 'my_project'
 
-  # config.resolve tells Pipes to resolve dependencies when calling Pipes::Runner.run(...) (default true):
+  # config.resolve tells Pipes to resolve dependencies when calling Pipes.enqueue(...) (default true):
   config.resolve = false
 
   config.stages do
@@ -419,7 +424,7 @@ You can pass a hash of options when enqueueing workers through Pipes.
 By default, Pipes will resolve and queue up all dependencies of the jobs you are requesting. You can turn off dependency resolution by passing in some additional Pipes options as the third argument:
 
 ```ruby
-Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {resolve: false})
+Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page', {resolve: false})
 ```
 
 When **resolve** is false, only `Writers::HTMLWriter` will be run, ignoring dependencies.
@@ -429,9 +434,9 @@ When **resolve** is false, only `Writers::HTMLWriter` will be run, ignoring depe
 If jobs are already queued up in Pipes and you'd like to enqueue more jobs, you may need to specify that only certain jobs be duplicated in the queue.
 
 ```ruby
-Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: :content_writers})
+Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: :content_writers})
 # ..or an array of stages..
-Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: [:content_writers, :publishers]})
+Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicates: [:content_writers, :publishers]})
 ```
 
 When Pipes enqueues `Writers::HTMLWriter` and all its dependencies, it will check whether any jobs with the same class name already exist in the queue. If a job has already been queued up with the same class name and **does not** belong to one of the stages provided to **allow_duplicates**, it is ignored.
@@ -486,7 +491,7 @@ $ QUEUES=priority_1,priority_2 rake resque:work
 Run the jobs through Pipes:
 
 ```ruby
-Pipes::Runner.run(:content_writers)
+Pipes.enqueue(:content_writers)
 ```
 
 Pipes will queue up both `Writer::HTMLWriter` and `Writer::AssetWriter` in Resque. Resque takes over and respects the queue priorities, first running `Writers::HTMLWriter`, then `Writers::AssetWriter`.
@@ -505,7 +510,7 @@ module Writers
     def self.perform(locale)
       Pages.all.each do |page|
         # Enqueue additional jobs to do the real work
-        Pipes::Runner.run(Writers::PageWriter, page.id, locale, {allow_duplicates: [:content_writers]})
+        Pipes.enqueue(Writers::PageWriter, page.id, locale, {allow_duplicates: [:content_writers]})
       end
     end
   end
@@ -546,7 +551,7 @@ end
 We fire off just the `HTMLWriter`:
 
 ```ruby
-Pipes::Runner.run(Writer::HTMLWriter, 'en-US')
+Pipes.enqueue(Writer::HTMLWriter, 'en-US')
 ```
 
 Pipes queues up the `Writer::HTMLWriter` and its dependent, `Publishers::Rsyncer`. So, our queue looks like this:
@@ -607,13 +612,13 @@ If your job is expecting a hash as the last argument, you'll need to pass an add
 
 ```ruby
 # Pipes will assume {follow_links: true} is options for Pipes, not your job:
-Pipes::Runner.run([Writers::HTMLWriter], {follow_links: true})
+Pipes.enqueue([Writers::HTMLWriter], {follow_links: true})
 
 # So you should pass a trailing hash to denote that there are no Pipes options:
-Pipes::Runner.run([Writers::HTMLWriter], {follow_links: true}, {})
+Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {})
 
 # Of course, if you do specify options for Pipes, everything will work fine:
-Pipes::Runner.run([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
+Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
 ```
 
 ## Future Improvements
