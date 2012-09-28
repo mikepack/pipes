@@ -126,7 +126,7 @@ Publishers::Rsyncer
 You can also pass arguments to the jobs, just like Resque:
 
 ```ruby
-Pipes::Runner.run([Writers::HTMLWriter], 'http://localhost:3000/page')
+Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page')
 ```
 
 In the above case, all jobs' `.perform` methods would receive the `http://localhost:3000/page` argument. You can, of course, pass multiple arguments:
@@ -142,10 +142,10 @@ module Writers
   end
 end
 
-Pipes::Runner.run([Writers::HTMLWriter], 'google.com', 80)
+Pipes::Runner.run(Writers::HTMLWriter, 'google.com', 80)
 ```
 
-## Defining Stage Dependencies
+## Defining Job Dependencies
 
 Pipes makes it easy to define dependencies between jobs.
 
@@ -247,10 +247,125 @@ In the above example, `Notifiers::FileActivator` will also be a dependency of `W
 Running jobs with dependencies is the same as before:
 
 ```ruby
-Pipes::Runner.run([Writers::HTMLWriter], 'http://localhost:3000/page')
+Pipes::Runner.run(Writers::HTMLWriter, 'http://localhost:3000/page')
 ```
 
 The above code will run `Writers::HTMLWriter` in **Stage 1**, `Publishers::Rsyncer` and `Publishers::CDNUploader` in **Stage 2**, and `Notifiers::FileActivator` in **Stage 3**, all receiving the `http://localhost:3000/page' argument.
+
+## Defining Stage Dependencies
+
+Just as jobs can have dependencies, stages can as well.
+
+Imagine you have multiple jobs in a given stage, all of which have the same dependencies:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      {Writers::HTMLWriter => :publishers},
+      {Writers::AssetWriter => :publishers}
+    ]
+
+    publishers [
+      Publishers::Rsyncer
+    ]
+
+    notifiers [
+      Notifiers::FileActivator
+    ]
+  end
+end
+```
+
+This isn't so DRY. You would be better off adding a stage dependency:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      Writers::HTMLWriter,
+      Writers::AssetWriter
+    ] => :publishers
+
+    publishers [
+      Publishers::Rsyncer
+    ]
+
+    notifiers [
+      Notifiers::FileActivator
+    ]
+  end
+end
+```
+
+This tells Pipes that you would like all jobs in the `:content_writers` stage to have a depencency on all `:publishers`.
+
+You can intermix types for stage dependencies, just like with job dependencies:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      Writers::HTMLWriter,
+      Writers::AssetWriter
+    ] => [:publishers, Notifiers::FileActivator]
+
+    publishers [
+      Publishers::Rsyncer
+    ]
+
+    notifiers [
+      Notifiers::FileActivator
+    ]
+  end
+end
+```
+
+This will ensure that all `:publishers` and the `Notifiers::FileActivator` get run when either of the `:content_writers` are run.
+
+As you would expect, Pipes will resolve deep dependencies for you as well:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      Writers::HTMLWriter,
+      Writers::AssetWriter
+    ] => :publishers
+
+    publishers [
+      Publishers::Rsyncer
+    ] => :notifiers
+
+    notifiers [
+      Notifiers::FileActivator
+    ]
+  end
+end
+```
+
+The above will add `Publishers::Rsyncer` and `Notifiers::FileActivator` as dependencies of both `Writers::HTMLWriter` and `Writers::AssetWriter`.
+
+Intermixing job and stage dependencies works, too, resulting in the same dependency graph as the above example:
+
+```ruby
+Pipes.configure do |config|
+  config.stages do
+    content_writers [
+      Writers::HTMLWriter,
+      Writers::AssetWriter
+    ] => :publishers
+
+    publishers [
+      {Publishers::Rsyncer => :notifiers}
+    ]
+
+    notifiers [
+      Notifiers::FileActivator
+    ]
+  end
+end
+```
 
 ## Acceptable Formats for Jobs
 
@@ -506,7 +621,6 @@ Pipes::Runner.run([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
 - Better atomicity
 - Represent jobs and stages as objects, instead of simple data structures
 - Support for runaway workers/jobs
-- Stage-level dependencies (much like job-level)
 
 ## Credits
 

@@ -25,7 +25,7 @@ module Pipes
       if !@dependencies[job] or @dependencies[job].empty?
         []
       else
-        recursive_dependencies = @dependencies[job].map{ |strat| dependents_for(strat) }
+        recursive_dependencies = @dependencies[job].map{ |klass| dependents_for(klass) }
         (@dependencies[job] + recursive_dependencies).flatten.uniq
       end
     end
@@ -45,9 +45,12 @@ module Pipes
     #
     def stages_with_resolved_dependencies
       # Looping over all stages...
-      @stages.inject({}) do |resolved_stages, (name, stage)|
+      @stages.inject({}) do |resolved_stages, (name, jobs)|
+        # If it's defined with a stage dependency
+        jobs, _ = jobs.to_a.first if jobs.is_a? Hash
+
         # Looping over all jobs...
-        resolved_stages[name] = stage.inject([]) do |resolved_stage, job|
+        resolved_stages[name] = jobs.inject([]) do |resolved_stage, job|
           job = job.keys[0] if job.is_a? Hash
           # Normalze to new hash form
           resolved_stage << {job => @dependencies[job]}
@@ -73,15 +76,24 @@ module Pipes
       @dependencies = {}
 
       reversed = Hash[@stages.to_a.reverse]
-      reversed.each do |name, stage|
-        stage.each do |job|
+      reversed.each do |name, jobs|
+        if jobs.is_a? Hash
+          # Stage dependency present
+          jobs, stage_dependents = jobs.to_a.first
+        end
+
+        jobs.each do |job|
           # Does the job have dependents?
           if job.is_a? Hash
-            strat, dependents = job.to_a.first
-            @dependencies[strat] = dependencies_for_job(dependents)
+            job, dependents = job.to_a.first
+            @dependencies[job] = dependencies_for_job(dependents)
           else
             # Defined job is a simple class (eg Publisher)
             @dependencies[job] = []
+          end
+
+          if stage_dependents
+            @dependencies[job] += dependencies_for_job(stage_dependents)
           end
         end
       end
@@ -105,17 +117,17 @@ module Pipes
     # Iterate over all jobs for this stage and find dependents.
     #
     def dependents_for_stage(stage_name)
-      stage = @stages[stage_name.to_sym]
+      stage = array_for_stage(@stages[stage_name.to_sym])
 
-      stage.inject([]) do |klasses, job|
+      stage.inject([]) do |jobs, job|
         # Does the job have dependents?
         if job.is_a? Hash
-          strat, dependents = job.to_a.first
-          klasses << strat
-          klasses << dependencies_for_job(dependents)
+          job, dependents = job.to_a.first
+          jobs << job
+          jobs << dependencies_for_job(dependents)
         else
           # Defined job is a simple class (eg Publisher)
-          klasses << [job] + dependents_for(job)
+          jobs << [job] + dependents_for(job)
         end
       end.flatten.uniq
     end
@@ -138,8 +150,10 @@ module Pipes
 
     # Just list the jobs in the stage, ignoring dependencies.
     #
-    def array_for_stage(stage)
-      stage.inject([]) do |arr, job|
+    def array_for_stage(jobs)
+      jobs, _ = jobs.to_a.first if jobs.is_a? Hash
+
+      jobs.inject([]) do |arr, job|
         arr << if job.is_a? Hash
           # Take just the job class, without any dependents
           job.keys[0]

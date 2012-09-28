@@ -132,27 +132,69 @@ describe Pipes::StageParser do
       end
     end
 
-    context 'with a comlex configuration, intermixing dependent types' do
+    context 'with the stage having a dependency on another stage (stage dependencies)' do
+      let(:stages) {
+        {
+          writers:    {[ Writers::ContentWriter, Writers::AnotherContentWriter ] => :publishers},
+          publishers: {[ Publishers::Publisher ] => :messengers},
+          messengers:  [ Messengers::SMS ]
+        }
+      }
+
+      it 'adds all classes within the dependent stages to the list' do
+        expected = {
+                     writers:    [ { Writers::ContentWriter        => [Publishers::Publisher, Messengers::SMS] },
+                                   { Writers::AnotherContentWriter => [Publishers::Publisher, Messengers::SMS] } ],
+                     publishers: [ { Publishers::Publisher => [Messengers::SMS] } ],
+                     messengers: [ { Messengers::SMS       => [] } ]
+                   }
+
+        subject.new(stages).stages_with_resolved_dependencies.should == expected
+      end
+    end
+
+    context 'with the stage dependency as a mixed array' do
+      let(:stages) {
+        {
+          writers:    {[ Writers::ContentWriter, Writers::AnotherContentWriter ] => [:publishers, Messengers::SMS]},
+          publishers:  [ Publishers::Publisher ],
+          messengers:  [ Messengers::SMS ]
+        }
+      }
+
+      it 'adds all classes within the dependent stages to the list' do
+        expected = {
+                     writers:    [ { Writers::ContentWriter        => [Publishers::Publisher, Messengers::SMS] },
+                                   { Writers::AnotherContentWriter => [Publishers::Publisher, Messengers::SMS] } ],
+                     publishers: [ { Publishers::Publisher => [] } ],
+                     messengers: [ { Messengers::SMS       => [] } ]
+                   }
+
+        subject.new(stages).stages_with_resolved_dependencies.should == expected
+      end
+    end
+
+    context 'with a complex configuration, intermixing dependent types' do
       let (:stages) {
         {
-          writers:    [ { Writers::ContentWriter        => [:publishers, Uploaders::Rsync] },
-                        { Writers::AnotherContentWriter => [Emailers::Email] }
-                      ],
-          publishers: [ { Publishers::Publisher => :emailers } ],
-          messengers: [ { Messengers::SMS => :uploaders } ],
-          uploaders:  [ { Uploaders::Rsync => Notifiers::Twitter } ],
-          emailers:   [ Emailers::Email, Emailers::AnotherEmail ],
-          notifiers:  [ Notifiers::Twitter ]
+          writers:     [ { Writers::ContentWriter        => [:publishers, Uploaders::Rsync] },
+                         { Writers::AnotherContentWriter => [Emailers::Email] }
+                       ],
+          publishers: {[ { Publishers::Publisher => :emailers } ] => :notifiers},
+          messengers:  [ { Messengers::SMS => :uploaders } ],
+          uploaders:   [ { Uploaders::Rsync => Notifiers::Twitter } ],
+          emailers:    [ Emailers::Email, Emailers::AnotherEmail ],
+          notifiers:   [ Notifiers::Twitter ]
         }
       }
 
       it 'resolves all dependencies' do
         expected = {
                      writers:    [ { Writers::ContentWriter        => [Publishers::Publisher, Emailers::Email, Emailers::AnotherEmail,
-                                                                       Uploaders::Rsync, Notifiers::Twitter] },
+                                                                       Notifiers::Twitter, Uploaders::Rsync] },
                                    { Writers::AnotherContentWriter => [Emailers::Email] }
                                  ],
-                     publishers: [ { Publishers::Publisher  => [Emailers::Email, Emailers::AnotherEmail] } ],
+                     publishers: [ { Publishers::Publisher  => [Emailers::Email, Emailers::AnotherEmail, Notifiers::Twitter] } ],
                      messengers: [ { Messengers::SMS        => [Uploaders::Rsync, Notifiers::Twitter] } ],
                      uploaders:  [ { Uploaders::Rsync       => [Notifiers::Twitter] } ],
                      emailers:   [ { Emailers::Email        => [] },
