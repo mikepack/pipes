@@ -626,6 +626,7 @@ Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
 - Better atomicity
 - Represent jobs and stages as objects, instead of simple data structures
 - Support for runaway workers/jobs
+- Tab in Resque status site.
 
 ## Credits
 
