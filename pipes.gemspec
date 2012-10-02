@@ -16,7 +16,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(spec)/})
   gem.require_paths = ["lib"]
 
-  gem.add_dependency 'resque', '~> 1.22.0'
+  gem.add_dependency 'resque', '~> 1.23.0'
   gem.add_dependency 'redis-objects', '~> 0.5.3'
   gem.add_dependency 'abyss', '~> 0.4.0'
 
