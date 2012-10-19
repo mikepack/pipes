@@ -2,12 +2,10 @@ module Pipes
   # Default options
   @redis           = $redis
   @resolve         = true
-  @resque_tab      = true
-  @resque_tab_name = 'Pipes'
 
   class << self
     attr_reader :redis
-    attr_accessor :namespace, :resolve, :resque_tab, :resque_tab_name
+    attr_accessor :namespace, :resolve
   end
 
   # Open up the configuration for multiple values.

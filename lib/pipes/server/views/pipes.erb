@@ -1,6 +1,6 @@
 <div class="pipes">
   <h1>Your Stages 
-    <form method="POST" action="<%= url_path(tab_url, 'clear_all') %>">
+    <form method="POST" action="<%= url_path('pipes/clear_all') %>">
       <input type='submit' name='' value='Clear All' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
     </form>
   </h1>
@@ -9,7 +9,7 @@
 
   <div class="section">
     <h2>Jobs Remaining Before Next Stage 
-      <form method="POST" action="<%= url_path(tab_url, 'force_next') %>">
+      <form method="POST" action="<%= url_path('pipes/force_next') %>">
         <input type='submit' name='' value='Force Next Stage' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
       </form>
     </h2>
@@ -19,7 +19,7 @@
   <% Pipes::Store.stages.each do |stage| %>
     <div class="section">
       <h2><%= titleize(stage) %>
-        <form method="POST" action="<%= url_path(tab_url, 'clear') %>">
+        <form method="POST" action="<%= url_path('pipes/clear') %>">
           <input name="stage_name" type="hidden" value="<%= stage %>" />
           <input type='submit' name='' value='Clear Stage' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
         </form>

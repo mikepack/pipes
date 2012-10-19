@@ -407,12 +407,6 @@ Pipes.configure do |config|
   # config.resolve tells Pipes to resolve dependencies when calling Pipes.enqueue(...) (default true):
   config.resolve = false
 
-  # config.resque_tab tells Pipes whether or not to show the Resque tab (default true):
-  config.resque_tab = true
-
-  # config.resque_tab_name is the name of the tab used for the Resque tab (default 'Pipes'):
-  config.resque_tab_name = 'Publisher'
-
   config.stages do
     # ...
   end
@@ -454,7 +448,6 @@ This option helps prevent adding redundant jobs to the queue. See the section *Q
 Pipes provides a Resque interface tab to help visualize and manage your queues.
 
 ![Resque Tab](http://i.imgur.com/5LA1s.png)
-
 
 ## Working With Resque Priorities
 
@@ -632,18 +625,6 @@ Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {})
 
 # Of course, if you do specify options for Pipes, everything will work fine:
 Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
-```
-
----
-
-The name of your Resque tab can not contain spaces. This is due to the way in which Resque renders the tabs. It simply assumes they are space-less.
-
-So, this won't route properly:
-
-```ruby
-Pipes.configure do |config|
-  config.resque_tab_name = 'Something With Spaces'
-end
 ```
 
 ---
