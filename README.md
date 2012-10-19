@@ -101,7 +101,7 @@ end
 
 There's more advanced ways of defining stages, more on that later.
 
-Stages are defined lexically. That is, the order in which you define your stages in the config determines the order they will be run.
+Stages are ordered lexically. That is, the order in which you define your stages in the config determines the order they will be run.
 
 The name of the stage is arbitrary. Above, we have `content_writers`, `publishers` and `notifiers`, though there's no significant meaning. The name of the stage can be later extracted and presented to the user or referenced as a symbol.
 
@@ -407,6 +407,12 @@ Pipes.configure do |config|
   # config.resolve tells Pipes to resolve dependencies when calling Pipes.enqueue(...) (default true):
   config.resolve = false
 
+  # config.resque_tab tells Pipes whether or not to show the Resque tab (default true):
+  config.resque_tab = true
+
+  # config.resque_tab_name is the name of the tab used for the Resque tab (default 'Pipes'):
+  config.resque_tab_name = 'Publisher'
+
   config.stages do
     # ...
   end
@@ -442,6 +448,13 @@ Pipes.enqueue(Writers::HTMLWriter, 'http://localhost:3000/page', {allow_duplicat
 When Pipes enqueues `Writers::HTMLWriter` and all its dependencies, it will check whether any jobs with the same class name already exist in the queue. If a job has already been queued up with the same class name and **does not** belong to one of the stages provided to **allow_duplicates**, it is ignored.
 
 This option helps prevent adding redundant jobs to the queue. See the section *Queueing Up Additional Jobs*.
+
+## Resque Tab
+
+Pipes provides a Resque interface tab to help visualize and manage your queues.
+
+![Resque Tab](http://i.imgur.com/5LA1s.png)
+
 
 ## Working With Resque Priorities
 
@@ -621,12 +634,27 @@ Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {})
 Pipes.enqueue([Writers::HTMLWriter], {follow_links: true}, {resolve: true})
 ```
 
+---
+
+The name of your Resque tab can not contain spaces. This is due to the way in which Resque renders the tabs. It simply assumes they are space-less.
+
+So, this won't route properly:
+
+```ruby
+Pipes.configure do |config|
+  config.resque_tab_name = 'Something With Spaces'
+end
+```
+
+---
+
+Until Resque 2.0 is released, Pipes could be cloggering your `before_fork` hook. Resque only allows one `before_fork` hook and Pipes [defines one](https://github.com/mikepack/pipes/blob/master/lib/pipes/resque_hooks.rb). In Resque 2.0, you can define multiple hooks. If you don't define your own `before_fork` hook, you'll be fine.
+
 ## Future Improvements
 
 - Better atomicity
 - Represent jobs and stages as objects, instead of simple data structures
 - Support for runaway workers/jobs
-- Tab in Resque status site.
 
 ## Credits
 

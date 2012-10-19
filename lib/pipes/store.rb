@@ -79,6 +79,24 @@ module Pipes
       remaining_jobs.clear
     end
 
+    # Stages specified in the configuration.
+    #
+    def self.stages
+      StageParser.new.stage_names
+    end
+
+    # Jobs left in a given stage.
+    #
+    def self.pending_jobs(stage)
+      Redis::List.new(stage_key(stage), marshal: true)
+    end
+
+    # Jobs remaining before the next stage will be evaluated
+    #
+    def self.remaining_jobs
+      @remaining_jobs ||= Redis::Counter.new(@redis_remaining_key)
+    end
+
     private
 
     def self.valid_for_queue?(stage, pending, job, options)
@@ -92,20 +110,8 @@ module Pipes
       !pending.include?(job)
     end
 
-    def self.stages
-      StageParser.new.stage_names
-    end
-
     def self.stage_key(name)
       "#{@redis_stages_key}:#{name}"
-    end
-
-    def self.pending_jobs(stage)
-      Redis::List.new(stage_key(stage), marshal: true)
-    end
-
-    def self.remaining_jobs
-      @remaining_jobs ||= Redis::Counter.new(@redis_remaining_key)
     end
 
     def self.namespace

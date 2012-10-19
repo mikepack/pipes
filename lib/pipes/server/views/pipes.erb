@@ -1,0 +1,87 @@
+<div class="pipes">
+  <h1>Your Stages 
+    <form method="POST" action="<%= url_path(tab_url, 'clear_all') %>">
+      <input type='submit' name='' value='Clear All' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
+    </form>
+  </h1>
+
+  Below is the current status of your configured stages.
+
+  <div class="section">
+    <h2>Jobs Remaining Before Next Stage 
+      <form method="POST" action="<%= url_path(tab_url, 'force_next') %>">
+        <input type='submit' name='' value='Force Next Stage' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
+      </form>
+    </h2>
+    <%= Pipes::Store.remaining_jobs %> remaining job(s)
+  </div>
+
+  <% Pipes::Store.stages.each do |stage| %>
+    <div class="section">
+      <h2><%= titleize(stage) %>
+        <form method="POST" action="<%= url_path(tab_url, 'clear') %>">
+          <input name="stage_name" type="hidden" value="<%= stage %>" />
+          <input type='submit' name='' value='Clear Stage' onclick='return confirm("Are you absolutely sure? This cannot be undone.");' />
+        </form>
+      </h2>
+      <div class="stage">
+        <% Pipes::Store.pending_jobs(stage).each do |job| %>
+          <div class="job">
+            <span class="class"><%= job[:class] %></span><br />
+            <span class="args">Args: <%= job[:args].join(', ') %></span>
+          </div>
+        <% end %>
+        <div style="clear: both;"></div>
+      </div>
+    </div>
+  <% end %>
+
+  <hr />
+  <%= partial :overview %>
+</pipes>
+
+
+<% ################## STYLES ################## %>
+
+<style>
+  .section {
+    margin-top: 30px;
+  }
+  .pipes form {
+    display: inline-block !important;
+    float: none !important;
+    margin: 0 0 0 5px !important;
+  }
+  .stage {
+    border: 1px solid #DDD;
+    padding-bottom: 20px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    background: #EEE;
+    margin-bottom: 30px;
+    -webkit-box-shadow: 0px 0px 15px rgba(50, 50, 50, 0.3);
+    -moz-box-shadow:    0px 0px 15px rgba(50, 50, 50, 0.3);
+    box-shadow:         0px 0px 15px rgba(50, 50, 50, 0.3);
+  }
+  .stage .job {
+    float: left;
+    width: 190px;
+    margin: 20px 0 0 20px;
+    border: 1px solid #78c3c8;
+    overflow: hidden;
+    padding: 10px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+  }
+  .stage .job:hover {
+    overflow: visible;
+  }
+  .stage .job .class {
+    font-weight: bold;
+  }
+  .stage .job .args {
+    color: #444;
+  }
+</style>
