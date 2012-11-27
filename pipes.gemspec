@@ -17,7 +17,7 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
 
   gem.add_dependency 'resque', '~> 1.23.0'
-  gem.add_dependency 'redis-objects', '~> 0.5.3'
+  gem.add_dependency 'redis-objects', '~> 0.6.1'
   gem.add_dependency 'abyss', '~> 0.4.0'
 
   gem.add_development_dependency 'rspec'
